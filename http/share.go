@@ -11,7 +11,10 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
+
+	"github.com/gorilla/mux"
 
 	fberrors "github.com/filebrowser/filebrowser/v2/errors"
 	"github.com/filebrowser/filebrowser/v2/share"
@@ -176,13 +179,34 @@ var sharePostHandler = withPermShare(func(w http.ResponseWriter, r *http.Request
 		defer r.Body.Close()
 	}
 
-	bytes := make([]byte, 6)
-	_, err := rand.Read(bytes)
-	if err != nil {
-		return http.StatusInternalServerError, err
+	var str string
+	if body.Slug != "" {
+		slug, err := share.NormalizeSlug(body.Slug)
+		if err != nil {
+			return http.StatusBadRequest, err
+		}
+		str = slug
+	} else {
+		bytes := make([]byte, 6)
+		if _, err := rand.Read(bytes); err != nil {
+			return http.StatusInternalServerError, err
+		}
+		str = base64.URLEncoding.EncodeToString(bytes)
 	}
 
-	str := base64.URLEncoding.EncodeToString(bytes)
+	// Serialize creation so two requests can't claim the same custom slug.
+	shareCreateMu.Lock()
+	defer shareCreateMu.Unlock()
+
+	if body.Slug != "" {
+		taken, err := shareHashTaken(d, str)
+		if err != nil {
+			return http.StatusInternalServerError, err
+		}
+		if taken {
+			return http.StatusConflict, fmt.Errorf("the link %q is already in use", str)
+		}
+	}
 
 	var expire int64 = 0
 
@@ -235,6 +259,40 @@ var sharePostHandler = withPermShare(func(w http.ResponseWriter, r *http.Request
 	}
 
 	return renderJSON(w, r, toShareResponse(s))
+})
+
+var shareCreateMu sync.Mutex
+
+// shareHashTaken reports whether a share with this hash exists. Expired links
+// are cleaned up by GetByHash and therefore count as free.
+func shareHashTaken(d *data, hash string) (bool, error) {
+	_, err := d.store.Share.GetByHash(hash)
+	if err == nil {
+		return true, nil
+	}
+	if errors.Is(err, fberrors.ErrNotExist) {
+		return false, nil
+	}
+	return false, err
+}
+
+type slugAvailability struct {
+	Slug      string `json:"slug"`
+	Available bool   `json:"available"`
+	Error     string `json:"error,omitempty"`
+}
+
+// shareSlugHandler lets the UI check a custom link before creating it.
+var shareSlugHandler = withPermShare(func(w http.ResponseWriter, r *http.Request, d *data) (int, error) {
+	slug, err := share.NormalizeSlug(mux.Vars(r)["slug"])
+	if err != nil {
+		return renderJSON(w, r, slugAvailability{Slug: mux.Vars(r)["slug"], Error: err.Error()})
+	}
+	taken, err := shareHashTaken(d, slug)
+	if err != nil {
+		return http.StatusInternalServerError, err
+	}
+	return renderJSON(w, r, slugAvailability{Slug: slug, Available: !taken})
 })
 
 func getSharePasswordHash(body share.CreateBody) (data []byte, statuscode int, err error) {

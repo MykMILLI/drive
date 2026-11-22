@@ -162,3 +162,50 @@ func signShareTestToken(t *testing.T, id uint, username string, perm users.Permi
 	}
 	return signed
 }
+
+func TestSharePostHandlerCustomSlug(t *testing.T) {
+	root := t.TempDir()
+	userScope := filepath.Join(root, "user")
+	if err := os.MkdirAll(userScope, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(userScope, "file.txt"), []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	key := []byte("test-signing-key")
+	perm := users.Permissions{Share: true, Download: true}
+	st := scopedUserStorage(t, userScope, perm, key)
+	signed := signToken(t, perm, key)
+
+	post := func(body string) *httptest.ResponseRecorder {
+		req, _ := http.NewRequest(http.MethodPost, "/file.txt", strings.NewReader(body))
+		req.Header.Set("X-Auth", signed)
+		rec := httptest.NewRecorder()
+		handle(sharePostHandler, "", st, &settings.Server{Root: root}).ServeHTTP(rec, req)
+		return rec
+	}
+
+	rec := post(`{"slug":"Family-Photos"}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d %s", rec.Code, rec.Body.String())
+	}
+	var resp map[string]any
+	_ = json.Unmarshal(rec.Body.Bytes(), &resp)
+	if resp["hash"] != "family-photos" {
+		t.Fatalf("expected normalized slug, got %v", resp["hash"])
+	}
+
+	if rec := post(`{"slug":"family-photos"}`); rec.Code != http.StatusConflict {
+		t.Fatalf("expected 409 for taken slug, got %d", rec.Code)
+	}
+	for _, bad := range []string{"ab", "../etc", "has space", "-lead", "x/y", strings.Repeat("a", 65)} {
+		b, _ := json.Marshal(map[string]string{"slug": bad})
+		if rec := post(string(b)); rec.Code != http.StatusBadRequest {
+			t.Fatalf("expected 400 for slug %q, got %d", bad, rec.Code)
+		}
+	}
+	// Random links still work.
+	if rec := post(`{}`); rec.Code != http.StatusOK {
+		t.Fatalf("expected random link to work, got %d", rec.Code)
+	}
+}

@@ -80,6 +80,22 @@ func handleWithStaticData(w http.ResponseWriter, _ *http.Request, d *data, fSys 
 		}
 	}
 
+	data["Supabase"] = nil
+	if d.settings.AuthMethod == auth.MethodSupabaseAuth {
+		if sb, ok := auther.(*auth.SupabaseAuth); ok {
+			providers := sb.Providers
+			if providers == nil {
+				providers = []string{}
+			}
+			data["Supabase"] = map[string]interface{}{
+				"URL":        strings.TrimRight(sb.URL, "/"),
+				"Providers":  providers,
+				"MagicLink":  sb.MagicLink,
+				"AllowLocal": sb.AllowLocal,
+			}
+		}
+	}
+
 	b, err := json.Marshal(data)
 	if err != nil {
 		return http.StatusInternalServerError, err

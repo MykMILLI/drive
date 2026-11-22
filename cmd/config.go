@@ -46,6 +46,13 @@ func addConfigFlags(flags *pflag.FlagSet) {
 	flags.String("auth.header", "", "HTTP header for auth.method=proxy")
 	flags.String("auth.command", "", "command for auth.method=hook")
 	flags.String("auth.logoutPage", "", "url of custom logout page")
+	flags.String("auth.supabaseUrl", "", "Supabase gateway URL for auth.method=supabase (e.g. https://base.example.com)")
+	flags.String("auth.supabaseAnonKey", "", "Supabase anon key for auth.method=supabase")
+	flags.String("auth.supabaseAdmins", "", "comma separated emails granted admin for auth.method=supabase")
+	flags.String("auth.supabaseAllowedDomains", "", "comma separated email domains allowed to sign in for auth.method=supabase")
+	flags.String("auth.supabaseProviders", "", "comma separated OAuth providers to offer for auth.method=supabase (e.g. google,github)")
+	flags.Bool("auth.supabaseMagicLink", false, "enable magic link sign-in for auth.method=supabase")
+	flags.Bool("auth.supabaseAllowLocal", true, "keep local accounts working as a fallback for auth.method=supabase")
 
 	flags.String("recaptcha.host", "https://www.google.com", "use another host for ReCAPTCHA. recaptcha.net might be useful in China")
 	flags.String("recaptcha.key", "", "ReCaptcha site key")
@@ -71,7 +78,30 @@ func getAuthMethod(flags *pflag.FlagSet, defaults ...interface{}) (settings.Auth
 
 	var defaultAuther map[string]interface{}
 	if len(defaults) > 0 {
-		if hasAuth := defaults[0]; hasAuth != true {
+		if hasAuth := defaults[0]; hasAuth == true {
+			// The method was given explicitly. When it is the method that is
+			// already configured, keep its existing values as defaults so that
+			// only the flags passed on this invocation are changed.
+			var current *settings.Settings
+			var currentAuther auth.Auther
+			for _, arg := range defaults {
+				switch def := arg.(type) {
+				case *settings.Settings:
+					current = def
+				case auth.Auther:
+					currentAuther = def
+				}
+			}
+			if current != nil && currentAuther != nil && current.AuthMethod == method {
+				ms, err := json.Marshal(currentAuther)
+				if err != nil {
+					return "", nil, err
+				}
+				if err := json.Unmarshal(ms, &defaultAuther); err != nil {
+					return "", nil, err
+				}
+			}
+		} else {
 			for _, arg := range defaults {
 				switch def := arg.(type) {
 				case *settings.Settings:
@@ -169,6 +199,90 @@ func getHookAuth(flags *pflag.FlagSet, defaultAuther map[string]interface{}) (au
 	return &auth.HookAuth{Command: command}, nil
 }
 
+func splitList(s string) []string {
+	out := []string{}
+	for _, p := range strings.Split(s, ",") {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+func defaultList(def map[string]interface{}, key string) []string {
+	out := []string{}
+	if def == nil {
+		return out
+	}
+	if arr, ok := def[key].([]interface{}); ok {
+		for _, v := range arr {
+			if s, ok := v.(string); ok {
+				out = append(out, s)
+			}
+		}
+	}
+	return out
+}
+
+func getSupabaseAuth(flags *pflag.FlagSet, def map[string]interface{}) (auth.Auther, error) {
+	a := &auth.SupabaseAuth{}
+	var err error
+	str := func(flag, key string) string {
+		v, e := flags.GetString(flag)
+		if e != nil {
+			err = e
+		}
+		if v == "" && def != nil {
+			if dv, ok := def[key].(string); ok {
+				v = dv
+			}
+		}
+		return v
+	}
+	list := func(flag, key string) []string {
+		if flags.Changed(flag) {
+			v, e := flags.GetString(flag)
+			if e != nil {
+				err = e
+			}
+			return splitList(v)
+		}
+		if def != nil {
+			return defaultList(def, key)
+		}
+		v, _ := flags.GetString(flag)
+		return splitList(v)
+	}
+	boolean := func(flag, key string) bool {
+		v, e := flags.GetBool(flag)
+		if e != nil {
+			err = e
+		}
+		if !flags.Changed(flag) && def != nil {
+			if dv, ok := def[key].(bool); ok {
+				return dv
+			}
+		}
+		return v
+	}
+
+	a.URL = str("auth.supabaseUrl", "url")
+	a.AnonKey = str("auth.supabaseAnonKey", "anonKey")
+	a.Admins = list("auth.supabaseAdmins", "admins")
+	a.AllowedDomains = list("auth.supabaseAllowedDomains", "allowedDomains")
+	a.Providers = list("auth.supabaseProviders", "providers")
+	a.MagicLink = boolean("auth.supabaseMagicLink", "magicLink")
+	a.AllowLocal = boolean("auth.supabaseAllowLocal", "allowLocal")
+	if err != nil {
+		return nil, err
+	}
+
+	if a.URL == "" || a.AnonKey == "" {
+		return nil, errors.New("you must set the flags 'auth.supabaseUrl' and 'auth.supabaseAnonKey' for method 'supabase'")
+	}
+	return a, nil
+}
+
 func getAuthentication(flags *pflag.FlagSet, defaults ...interface{}) (settings.AuthMethod, auth.Auther, error) {
 	method, defaultAuther, err := getAuthMethod(flags, defaults...)
 	if err != nil {
@@ -185,6 +299,8 @@ func getAuthentication(flags *pflag.FlagSet, defaults ...interface{}) (settings.
 		auther, err = getJSONAuth(flags, defaultAuther)
 	case auth.MethodHookAuth:
 		auther, err = getHookAuth(flags, defaultAuther)
+	case auth.MethodSupabaseAuth:
+		auther, err = getSupabaseAuth(flags, defaultAuther)
 	default:
 		return "", nil, fberrors.ErrInvalidAuthMethod
 	}

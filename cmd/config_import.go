@@ -84,6 +84,13 @@ The path must be for a json or yaml file.`,
 			var a interface{}
 			a, autherErr = getAuther(auth.ProxyAuth{}, rawAuther)
 			auther = a.(*auth.ProxyAuth)
+		case auth.MethodSupabaseAuth:
+			sb := &auth.SupabaseAuth{}
+			var raw []byte
+			if raw, autherErr = json.Marshal(rawAuther); autherErr == nil {
+				autherErr = json.Unmarshal(raw, sb)
+			}
+			auther = sb
 		case auth.MethodHookAuth:
 			var a interface{}
 			a, autherErr = getAuther(&auth.HookAuth{}, rawAuther)

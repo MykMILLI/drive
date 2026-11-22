@@ -24,6 +24,8 @@ func (s authBackend) Get(t settings.AuthMethod) (auth.Auther, error) {
 		auther = &auth.HookAuth{}
 	case auth.MethodNoAuth:
 		auther = &auth.NoAuth{}
+	case auth.MethodSupabaseAuth:
+		auther = &auth.SupabaseAuth{}
 	default:
 		return nil, fberrors.ErrInvalidAuthMethod
 	}

@@ -6,7 +6,8 @@
       :aria-label="t('files.home')"
       :title="t('files.home')"
     >
-      <i class="material-icons">home</i>
+      <template v-if="rootLabel">{{ rootLabel }}</template>
+      <i v-else class="material-icons">home</i>
     </component>
 
     <span v-for="(link, index) in items" :key="index">
@@ -30,6 +31,7 @@ const route = useRoute();
 const props = defineProps<{
   base: string;
   noLink?: boolean;
+  rootLabel?: string;
 }>();
 
 const items = computed(() => {

@@ -1,4 +1,4 @@
-const name: string = window.FileBrowser.Name || "File Browser";
+const name: string = window.FileBrowser.Name || "Drive";
 const disableExternal: boolean = window.FileBrowser.DisableExternal;
 const disableUsedPercentage: boolean = window.FileBrowser.DisableUsedPercentage;
 const baseURL: string = window.FileBrowser.BaseURL;
@@ -20,6 +20,15 @@ const tusSettings = window.FileBrowser.TusSettings;
 const origin = window.location.origin;
 const tusEndpoint = `/api/tus`;
 const hideLoginButton = window.FileBrowser.HideLoginButton;
+
+export interface SupabaseConfig {
+  URL: string;
+  Providers: string[];
+  MagicLink: boolean;
+  AllowLocal: boolean;
+}
+
+const supabase: SupabaseConfig | null = window.FileBrowser.Supabase || null;
 
 export {
   name,
@@ -43,4 +52,5 @@ export {
   origin,
   tusEndpoint,
   hideLoginButton,
+  supabase,
 };

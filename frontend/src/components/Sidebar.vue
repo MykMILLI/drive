@@ -1,116 +1,134 @@
 <template>
   <div v-show="active" @click="closeHovers" class="overlay"></div>
-  <nav :class="{ active }">
+  <nav :class="{ active }" :aria-label="$t('drive.navigation')">
+    <router-link class="sb-brand" :to="isLoggedIn ? '/files/' : '/login'">
+      <img :src="logoURL" alt="" />
+      <span>{{ name }}</span>
+    </router-link>
+
     <template v-if="isLoggedIn">
-      <button @click="toAccountSettings" class="action">
-        <i class="material-icons">person</i>
-        <span>{{ user.username }}</span>
-      </button>
-      <button
-        class="action"
-        @click="toRoot"
-        :aria-label="$t('sidebar.myFiles')"
-        :title="$t('sidebar.myFiles')"
-      >
-        <i class="material-icons">folder</i>
-        <span>{{ $t("sidebar.myFiles") }}</span>
-      </button>
-
-      <div v-if="user.perm.create">
+      <div v-if="user.perm.create" class="sb-new" ref="newRef">
         <button
-          @click="showHover('newDir')"
-          class="action"
-          :aria-label="$t('sidebar.newFolder')"
-          :title="$t('sidebar.newFolder')"
+          type="button"
+          @click.stop="newOpen = !newOpen"
+          :aria-expanded="newOpen"
+          aria-haspopup="menu"
         >
-          <i class="material-icons">create_new_folder</i>
-          <span>{{ $t("sidebar.newFolder") }}</span>
+          <i class="material-icons">add</i>
+          <span>{{ $t("drive.new") }}</span>
         </button>
-
-        <button
-          @click="showHover('newFile')"
-          class="action"
-          :aria-label="$t('sidebar.newFile')"
-          :title="$t('sidebar.newFile')"
-        >
-          <i class="material-icons">note_add</i>
-          <span>{{ $t("sidebar.newFile") }}</span>
-        </button>
+        <div v-if="newOpen" class="menu-pop" role="menu" style="top: 54px">
+          <button role="menuitem" @click="newAction('newDir')">
+            <i class="material-icons">create_new_folder</i>
+            {{ $t("sidebar.newFolder") }}
+          </button>
+          <button role="menuitem" @click="newAction('newFile')">
+            <i class="material-icons">note_add</i>
+            {{ $t("sidebar.newFile") }}
+          </button>
+          <hr />
+          <button role="menuitem" @click="newAction('uploadFile')">
+            <i class="material-icons">upload_file</i>
+            {{ $t("drive.uploadFiles") }}
+          </button>
+          <button role="menuitem" @click="newAction('uploadFolder')">
+            <i class="material-icons">drive_folder_upload</i>
+            {{ $t("drive.uploadFolder") }}
+          </button>
+        </div>
       </div>
 
-      <div v-if="user.perm.admin">
-        <button
-          class="action"
-          @click="toGlobalSettings"
-          :aria-label="$t('sidebar.settings')"
-          :title="$t('sidebar.settings')"
+      <div class="sb-links">
+        <router-link
+          v-for="link in links"
+          :key="link.to"
+          :to="link.to"
+          class="sb-link"
+          :class="{ active: isActive(link) }"
+          @click="closeHovers"
         >
-          <i class="material-icons">settings_applications</i>
+          <i class="material-icons">{{ link.icon }}</i>
+          <span>{{ link.label }}</span>
+        </router-link>
+
+        <div class="sb-section">{{ $t("drive.manage") }}</div>
+        <router-link
+          to="/settings/profile"
+          class="sb-link"
+          :class="{ active: $route.path.startsWith('/settings/profile') }"
+          @click="closeHovers"
+        >
+          <i class="material-icons">tune</i>
           <span>{{ $t("sidebar.settings") }}</span>
+        </router-link>
+        <router-link
+          v-if="user.perm.admin"
+          to="/settings/global"
+          class="sb-link"
+          :class="{
+            active:
+              $route.path.startsWith('/settings') &&
+              !$route.path.startsWith('/settings/profile'),
+          }"
+          @click="closeHovers"
+        >
+          <i class="material-icons">admin_panel_settings</i>
+          <span>{{ $t("drive.admin") }}</span>
+        </router-link>
+        <button
+          v-if="canLogout"
+          @click="logout"
+          class="sb-link"
+          id="logout"
+          type="button"
+        >
+          <i class="material-icons">logout</i>
+          <span>{{ $t("sidebar.logout") }}</span>
         </button>
       </div>
-      <button
-        v-if="canLogout"
-        @click="logout"
-        class="action"
-        id="logout"
-        :aria-label="$t('sidebar.logout')"
-        :title="$t('sidebar.logout')"
-      >
-        <i class="material-icons">exit_to_app</i>
-        <span>{{ $t("sidebar.logout") }}</span>
-      </button>
     </template>
-    <template v-else>
-      <router-link
-        v-if="!hideLoginButton"
-        class="action"
-        to="/login"
-        :aria-label="$t('sidebar.login')"
-        :title="$t('sidebar.login')"
-      >
-        <i class="material-icons">exit_to_app</i>
+    <div v-else class="sb-links">
+      <router-link v-if="!hideLoginButton" class="sb-link" to="/login">
+        <i class="material-icons">login</i>
         <span>{{ $t("sidebar.login") }}</span>
       </router-link>
-
-      <router-link
-        v-if="signup"
-        class="action"
-        to="/login"
-        :aria-label="$t('sidebar.signup')"
-        :title="$t('sidebar.signup')"
-      >
+      <router-link v-if="signup" class="sb-link" to="/login">
         <i class="material-icons">person_add</i>
         <span>{{ $t("sidebar.signup") }}</span>
       </router-link>
-    </template>
-
-    <div
-      class="credits"
-      v-if="isFiles && !disableUsedPercentage"
-      style="width: 90%; margin: 2em 2.5em 3em 2.5em"
-    >
-      <progress-bar :val="usage.usedPercentage" size="small"></progress-bar>
-      <br />
-      {{ $t("sidebar.diskUsed", { used: usage.used, total: usage.total }) }}
     </div>
 
-    <p class="credits">
+    <div class="sb-spacer"></div>
+
+    <div v-if="isLoggedIn && !disableUsedPercentage" class="sb-storage">
+      <div class="sb-storage-head">
+        <i class="material-icons">cloud</i>
+        {{ $t("drive.storage") }}
+      </div>
+      <div class="sb-meter" :class="{ warn: usage.usedPercentage >= 85 }">
+        <div
+          :style="{ width: Math.min(usage.usedPercentage, 100) + '%' }"
+        ></div>
+      </div>
+      <p>
+        {{ $t("sidebar.diskUsed", { used: usage.used, total: usage.total }) }}
+      </p>
+    </div>
+
+    <div class="sb-foot">
       <span>
-        <span v-if="disableExternal">File Browser</span>
+        <span v-if="disableExternal">{{ name }}</span>
         <a
           v-else
           rel="noopener noreferrer"
           target="_blank"
-          href="https://github.com/filebrowser/filebrowser"
-          >File Browser</a
+          href="https://github.com/MykMILLI/drive"
+          >{{ name }}</a
         >
-        <span> {{ " " }} {{ version }}</span>
+        {{ version }}
       </span>
-      <span>
-        <a @click="help">{{ $t("sidebar.help") }}</a>
-      </span>
-    </p>
+      <a @click="help">{{ $t("sidebar.help") }}</a>
+    </div>
   </nav>
 </template>
 
@@ -131,9 +149,10 @@ import {
   noAuth,
   logoutPage,
   loginPage,
+  logoURL,
+  name,
 } from "@/utils/constants";
 import { files as api } from "@/api";
-import ProgressBar from "@/components/ProgressBar.vue";
 import prettyBytes from "pretty-bytes";
 
 const USAGE_DEFAULT = { used: "0 B", total: "0 B", usedPercentage: 0 };
@@ -141,38 +160,102 @@ const USAGE_DEFAULT = { used: "0 B", total: "0 B", usedPercentage: 0 };
 export default {
   name: "sidebar",
   setup() {
-    const usage = reactive(USAGE_DEFAULT);
+    const usage = reactive({ ...USAGE_DEFAULT });
     return { usage, usageAbortController: new AbortController() };
   },
-  components: {
-    ProgressBar,
+  data() {
+    return { newOpen: false };
   },
   inject: ["$showError"],
   computed: {
     ...mapState(useAuthStore, ["user", "isLoggedIn"]),
-    ...mapState(useFileStore, ["isFiles", "reload"]),
+    ...mapState(useFileStore, ["isFiles", "isListing", "reload"]),
     ...mapState(useLayoutStore, ["currentPromptName"]),
     active() {
       return this.currentPromptName === "sidebar";
     },
+    links() {
+      return [
+        {
+          to: "/files/",
+          icon: "folder_open",
+          label: this.$t("drive.myDrive"),
+          match: "/files",
+        },
+        { to: "/recent", icon: "schedule", label: this.$t("drive.recent") },
+        {
+          to: "/starred",
+          icon: "star_outline",
+          label: this.$t("drive.starred"),
+        },
+        ...(this.user?.perm.share
+          ? [
+              {
+                to: "/shared",
+                icon: "link",
+                label: this.$t("drive.sharedLinks"),
+              },
+            ]
+          : []),
+      ];
+    },
     signup: () => signup,
     hideLoginButton: () => hideLoginButton,
     version: () => version,
+    name: () => name,
+    logoURL: () => logoURL,
     disableExternal: () => disableExternal,
     disableUsedPercentage: () => disableUsedPercentage,
     canLogout: () => !noAuth && (loginPage || logoutPage !== "/login"),
   },
   methods: {
     ...mapActions(useLayoutStore, ["closeHovers", "showHover"]),
+    isActive(link) {
+      return this.$route.path.startsWith(link.match || link.to);
+    },
+    onDocClick(e) {
+      if (
+        this.newOpen &&
+        this.$refs.newRef &&
+        !this.$refs.newRef.contains(e.target)
+      ) {
+        this.newOpen = false;
+      }
+    },
+    async waitForListing() {
+      if (this.isListing) return true;
+      await this.$router.push({ path: "/files/" });
+      for (let i = 0; i < 60; i++) {
+        if (this.isListing) return true;
+        await new Promise((r) => setTimeout(r, 50));
+      }
+      return this.isListing;
+    },
+    async newAction(kind) {
+      this.newOpen = false;
+      this.closeHovers();
+      if (!(await this.waitForListing())) return;
+      await this.$nextTick();
+      if (kind === "uploadFile") {
+        document.getElementById("upload-input")?.click();
+      } else if (kind === "uploadFolder") {
+        document.getElementById("upload-folder-input")?.click();
+      } else {
+        this.showHover(kind);
+      }
+    },
     abortOngoingFetchUsage() {
       this.usageAbortController.abort();
     },
     async fetchUsage() {
-      const path = this.$route.path.endsWith("/")
-        ? this.$route.path
-        : this.$route.path + "/";
+      let path = "/files/";
+      if (this.$route.path.startsWith("/files")) {
+        path = this.$route.path.endsWith("/")
+          ? this.$route.path
+          : this.$route.path + "/";
+      }
       let usageStats = USAGE_DEFAULT;
-      if (this.disableUsedPercentage) {
+      if (this.disableUsedPercentage || !this.isLoggedIn) {
         return Object.assign(this.usage, usageStats);
       }
       try {
@@ -182,23 +265,15 @@ export default {
         usageStats = {
           used: prettyBytes(usage.used, { binary: true }),
           total: prettyBytes(usage.total, { binary: true }),
-          usedPercentage: Math.round((usage.used / usage.total) * 100),
+          usedPercentage: usage.total
+            ? Math.round((usage.used / usage.total) * 100)
+            : 0,
         };
+      } catch {
+        // keep defaults
       } finally {
-        return Object.assign(this.usage, usageStats);
+        Object.assign(this.usage, usageStats);
       }
-    },
-    toRoot() {
-      this.$router.push({ path: "/files" });
-      this.closeHovers();
-    },
-    toAccountSettings() {
-      this.$router.push({ path: "/settings/profile" });
-      this.closeHovers();
-    },
-    toGlobalSettings() {
-      this.$router.push({ path: "/settings/global" });
-      this.closeHovers();
     },
     help() {
       this.showHover("help");
@@ -207,15 +282,21 @@ export default {
   },
   watch: {
     $route: {
-      handler(to) {
-        if (to.path.includes("/files")) {
+      handler(to, from) {
+        // Usage depends on the folder only for /files; refresh on first load
+        // and when browsing.
+        if (!from || to.path.startsWith("/files")) {
           this.fetchUsage();
         }
       },
       immediate: true,
     },
   },
+  mounted() {
+    document.addEventListener("click", this.onDocClick);
+  },
   unmounted() {
+    document.removeEventListener("click", this.onDocClick);
     this.abortOngoingFetchUsage();
   },
 };

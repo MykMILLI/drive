@@ -15,6 +15,28 @@ export const setTheme = (theme: UserTheme) => {
   }
 };
 
+const STORAGE_KEY = "drive-theme";
+
+/** Theme chosen by the user on this device (overrides the global branding). */
+export const getStoredTheme = (): UserTheme => {
+  try {
+    return (localStorage.getItem(STORAGE_KEY) as UserTheme) || "";
+  } catch {
+    return "";
+  }
+};
+
+/** Persist (or clear, with "") the device theme preference and apply it. */
+export const setStoredTheme = (value: UserTheme) => {
+  try {
+    if (value) localStorage.setItem(STORAGE_KEY, value);
+    else localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // ignore storage failures (private mode, etc.)
+  }
+  setTheme(value || theme || getMediaPreference());
+};
+
 export const toggleTheme = (): void => {
   const activeTheme = getTheme();
   if (activeTheme === "light") {

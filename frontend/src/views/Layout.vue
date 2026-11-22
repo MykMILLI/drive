@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div :class="{ 'no-sidebar': !showSidebar }">
     <div v-if="uploadStore.totalBytes" class="progress">
       <div
         v-bind:style="{
@@ -7,7 +7,7 @@
         }"
       ></div>
     </div>
-    <sidebar></sidebar>
+    <sidebar v-if="showSidebar"></sidebar>
     <main>
       <router-view></router-view>
       <shell
@@ -39,6 +39,11 @@ const authStore = useAuthStore();
 const fileStore = useFileStore();
 const uploadStore = useUploadStore();
 const route = useRoute();
+
+// Public share pages are shown without the app chrome to visitors.
+const showSidebar = computed(
+  () => !(route.name === "Share" && !authStore.isLoggedIn)
+);
 
 const sentPercent = computed(() =>
   ((uploadStore.sentBytes / uploadStore.totalBytes) * 100).toFixed(2)

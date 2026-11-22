@@ -32,7 +32,15 @@
     </div>
 
     <div>
-      <p class="name">{{ name }}</p>
+      <p class="name">
+        {{ name
+        }}<span
+          v-if="isStarred"
+          class="material-icons star-badge"
+          :title="$t('drive.starred')"
+          >star</span
+        >
+      </p>
 
       <p v-if="isDir" class="size" data-order="-1">&mdash;</p>
       <p v-else class="size" :data-order="humanSize()">{{ humanSize() }}</p>
@@ -48,6 +56,7 @@
 import { useAuthStore } from "@/stores/auth";
 import { useFileStore } from "@/stores/file";
 import { useLayoutStore } from "@/stores/layout";
+import { useStarredStore } from "@/stores/starred";
 
 import { enableThumbs } from "@/utils/constants";
 import { filesize } from "@/utils";
@@ -83,6 +92,11 @@ const props = defineProps<{
 const authStore = useAuthStore();
 const fileStore = useFileStore();
 const layoutStore = useLayoutStore();
+const starredStore = useStarredStore();
+
+const isStarred = computed(
+  () => !props.readOnly && !!props.path && starredStore.isStarred(props.path)
+);
 
 const singleClick = computed(
   () => !props.readOnly && authStore.user?.singleClick

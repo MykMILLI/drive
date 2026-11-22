@@ -11,6 +11,9 @@ import GlobalSettings from "@/views/settings/Global.vue";
 import ProfileSettings from "@/views/settings/Profile.vue";
 import Shares from "@/views/settings/Shares.vue";
 import Errors from "@/views/Errors.vue";
+import Recent from "@/views/Recent.vue";
+import Starred from "@/views/Starred.vue";
+import SharedLinks from "@/views/Shared.vue";
 import { useAuthStore } from "@/stores/auth";
 import { baseURL, name } from "@/utils/constants";
 import i18n from "@/i18n";
@@ -21,6 +24,9 @@ const titles = {
   Login: "sidebar.login",
   Share: "buttons.share",
   Files: "files.files",
+  Recent: "drive.recent",
+  Starred: "drive.starred",
+  SharedLinks: "drive.sharedLinks",
   Settings: "sidebar.settings",
   ProfileSettings: "settings.profileSettings",
   Shares: "settings.shareManagement",
@@ -60,6 +66,48 @@ const routes = [
         path: ":path*",
         name: "Files",
         component: Files,
+      },
+    ],
+  },
+  {
+    path: "/recent",
+    component: Layout,
+    meta: {
+      requiresAuth: true,
+    },
+    children: [
+      {
+        path: "",
+        name: "Recent",
+        component: Recent,
+      },
+    ],
+  },
+  {
+    path: "/starred",
+    component: Layout,
+    meta: {
+      requiresAuth: true,
+    },
+    children: [
+      {
+        path: "",
+        name: "Starred",
+        component: Starred,
+      },
+    ],
+  },
+  {
+    path: "/shared",
+    component: Layout,
+    meta: {
+      requiresAuth: true,
+    },
+    children: [
+      {
+        path: "",
+        name: "SharedLinks",
+        component: SharedLinks,
       },
     ],
   },

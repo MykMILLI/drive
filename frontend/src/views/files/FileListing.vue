@@ -13,6 +13,12 @@
       <template #actions>
         <template v-if="!isMobile">
           <action
+            v-if="headerButtons.star"
+            :icon="selectedStarred ? 'star' : 'star_outline'"
+            :label="selectedStarred ? t('drive.unstar') : t('drive.star')"
+            @action="toggleStar"
+          />
+          <action
             v-if="headerButtons.share"
             icon="share"
             :label="t('buttons.share')"
@@ -54,6 +60,7 @@
           @action="layoutStore.toggleShell"
         />
         <action
+          class="hide-desktop"
           :icon="viewIcon"
           :label="t('buttons.switchView')"
           @action="switchView"
@@ -91,6 +98,12 @@
       <span v-if="fileStore.selectedCount > 0">
         {{ t("prompts.filesSelected", fileStore.selectedCount) }}
       </span>
+      <action
+        v-if="headerButtons.star"
+        :icon="selectedStarred ? 'star' : 'star_outline'"
+        :label="selectedStarred ? t('drive.unstar') : t('drive.star')"
+        @action="toggleStar"
+      />
       <action
         v-if="headerButtons.share"
         icon="share"
@@ -139,10 +152,27 @@
           (fileStore.req?.numDirs ?? 0) + (fileStore.req?.numFiles ?? 0) == 0
         "
       >
-        <h2 class="message">
-          <i class="material-icons">sentiment_dissatisfied</i>
-          <span>{{ t("files.lonely") }}</span>
-        </h2>
+        <div class="empty-state">
+          <div class="empty-art">
+            <i class="material-icons">cloud_upload</i>
+          </div>
+          <h3>{{ t("drive.emptyTitle") }}</h3>
+          <p>
+            {{
+              authStore.user?.perm.create
+                ? t("drive.emptyHint")
+                : t("files.lonely")
+            }}
+          </p>
+          <button
+            v-if="authStore.user?.perm.create"
+            class="button"
+            @click="uploadFunc"
+          >
+            <i class="material-icons">file_upload</i>
+            {{ t("buttons.upload") }}
+          </button>
+        </div>
         <input
           style="display: none"
           type="file"
@@ -159,8 +189,36 @@
           multiple
         />
       </div>
+      <div v-else class="list-toolbar">
+        <span class="pill">
+          {{
+            t("drive.itemCount", {
+              folders: fileStore.req?.numDirs ?? 0,
+              files: fileStore.req?.numFiles ?? 0,
+            })
+          }}
+        </span>
+        <span v-if="fileStore.selectedCount > 0" class="pill accent">
+          {{ t("prompts.filesSelected", fileStore.selectedCount) }}
+        </span>
+        <div class="toolbar-spacer"></div>
+        <div class="seg" role="group" :aria-label="t('buttons.switchView')">
+          <button
+            v-for="m in viewModes"
+            :key="m.mode"
+            :class="{ active: (authStore.user?.viewMode ?? 'list') === m.mode }"
+            :title="m.label"
+            :aria-label="m.label"
+            @click="setView(m.mode)"
+          >
+            <i class="material-icons">{{ m.icon }}</i>
+          </button>
+        </div>
+      </div>
       <div
-        v-else
+        v-if="
+          (fileStore.req?.numDirs ?? 0) + (fileStore.req?.numFiles ?? 0) != 0
+        "
         id="listing"
         ref="listing"
         class="file-icons"
@@ -263,6 +321,12 @@
           @hide="hideContextMenu"
         >
           <action
+            v-if="headerButtons.star"
+            :icon="selectedStarred ? 'star' : 'star_outline'"
+            :label="selectedStarred ? t('drive.unstar') : t('drive.star')"
+            @action="toggleStar"
+          />
+          <action
             v-if="headerButtons.share"
             icon="share"
             :label="t('buttons.share')"
@@ -336,6 +400,15 @@
         </div>
       </div>
     </template>
+    <div
+      v-if="externalDrag && authStore.user?.perm.create"
+      class="drop-overlay"
+    >
+      <div>
+        <i class="material-icons">cloud_upload</i>
+        {{ t("drive.dropToUpload") }}
+      </div>
+    </div>
   </div>
 </template>
 
@@ -344,6 +417,7 @@ import { useAuthStore } from "@/stores/auth";
 import { useClipboardStore } from "@/stores/clipboard";
 import { useFileStore } from "@/stores/file";
 import { useLayoutStore } from "@/stores/layout";
+import { useStarredStore } from "@/stores/starred";
 
 import { users, files as api } from "@/api";
 import { enableExec } from "@/utils/constants";
@@ -375,6 +449,7 @@ import { removePrefix } from "@/api/utils";
 const showLimit = ref<number>(50);
 const columnWidth = ref<number>(280);
 const dragCounter = ref<number>(0);
+const externalDrag = ref<boolean>(false);
 const width = ref<number>(window.innerWidth);
 const itemWeight = ref<number>(0);
 const isContextMenuVisible = ref<boolean>(false);
@@ -386,6 +461,7 @@ const clipboardStore = useClipboardStore();
 const authStore = useAuthStore();
 const fileStore = useFileStore();
 const layoutStore = useLayoutStore();
+const starredStore = useStarredStore();
 
 const { req } = storeToRefs(fileStore);
 
@@ -487,8 +563,58 @@ const headerButtons = computed(() => {
       authStore.user?.perm.download,
     move: fileStore.selectedCount > 0 && authStore.user?.perm.rename,
     copy: fileStore.selectedCount > 0 && authStore.user?.perm.create,
+    star: fileStore.selectedCount === 1,
   };
 });
+
+const selectedItem = computed(() => {
+  if (fileStore.req === null || fileStore.selectedCount !== 1) return null;
+  return fileStore.req.items[fileStore.selected[0]] ?? null;
+});
+
+const selectedStarred = computed(() =>
+  selectedItem.value ? starredStore.isStarred(selectedItem.value.path) : false
+);
+
+const toggleStar = async () => {
+  const item = selectedItem.value;
+  hideContextMenu();
+  if (!item) return;
+  try {
+    await starredStore.toggle(item.path);
+  } catch (e: any) {
+    $showError(e);
+  }
+};
+
+const viewModes = computed(() => [
+  {
+    mode: "list" as ViewModeType,
+    icon: "view_list",
+    label: t("drive.viewList"),
+  },
+  {
+    mode: "mosaic" as ViewModeType,
+    icon: "grid_view",
+    label: t("drive.viewGrid"),
+  },
+  {
+    mode: "mosaic gallery" as ViewModeType,
+    icon: "photo_library",
+    label: t("drive.viewGallery"),
+  },
+]);
+
+const setView = (mode: ViewModeType) => {
+  if (!authStore.user || authStore.user.viewMode === mode) return;
+  const data = { id: authStore.user.id, viewMode: mode };
+  users.update(data, ["viewMode"]).catch($showError);
+  authStore.updateUser(data);
+  nextTick(() => {
+    setItemWeight();
+    fillWindow();
+  });
+};
 
 const isMobile = computed(() => {
   return width.value <= 736;
@@ -512,6 +638,7 @@ watch(req, () => {
 });
 
 onMounted(() => {
+  starredStore.load().catch(() => {});
   // Check the columns size for the first time.
   columnsResize();
 
@@ -766,8 +893,11 @@ const scrollEvent = throttle(() => {
   }
 }, 100);
 
-const dragEnter = () => {
+const dragEnter = (event: DragEvent) => {
   dragCounter.value++;
+  if (Array.from(event.dataTransfer?.types ?? []).includes("Files")) {
+    externalDrag.value = true;
+  }
 
   // When the user starts dragging an item, put every
   // file on the listing with 50% opacity.
@@ -782,6 +912,7 @@ const dragLeave = () => {
   dragCounter.value--;
 
   if (dragCounter.value == 0) {
+    externalDrag.value = false;
     resetOpacity();
   }
 };
@@ -789,6 +920,7 @@ const dragLeave = () => {
 const drop = async (event: DragEvent) => {
   event.preventDefault();
   dragCounter.value = 0;
+  externalDrag.value = false;
   resetOpacity();
 
   const dt = event.dataTransfer;

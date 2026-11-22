@@ -75,6 +75,28 @@ export async function login(
   }
 }
 
+/** Exchanges a Supabase access token for a Drive session. */
+export async function loginWithToken(accessToken: string) {
+  const res = await fetch(`${baseURL}/api/login`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ accessToken }),
+  });
+
+  const body = await res.text();
+
+  if (res.status === 200) {
+    parseToken(body);
+  } else {
+    throw new StatusError(
+      body || `${res.status} ${res.statusText}`,
+      res.status
+    );
+  }
+}
+
 export async function renew(jwt: string) {
   const res = await fetch(`${baseURL}/api/renew`, {
     method: "POST",

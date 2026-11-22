@@ -26,6 +26,8 @@
       @action="layoutStore.showHover('more')"
     />
 
+    <UserMenu v-if="authStore.isLoggedIn" />
+
     <div
       class="overlay"
       v-show="layoutStore.currentPromptName == 'more'"
@@ -40,6 +42,8 @@ import { useLayoutStore } from "@/stores/layout";
 import { logoURL } from "@/utils/constants";
 
 import Action from "@/components/header/Action.vue";
+import UserMenu from "@/components/header/UserMenu.vue";
+import { useAuthStore } from "@/stores/auth";
 import { computed, useSlots } from "vue";
 import { useI18n } from "vue-i18n";
 
@@ -49,6 +53,7 @@ defineProps<{
 }>();
 
 const layoutStore = useLayoutStore();
+const authStore = useAuthStore();
 const slots = useSlots();
 
 const { t } = useI18n();

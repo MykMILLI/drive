@@ -25,6 +25,10 @@ If you keep running File Browser, treat it as unmaintained software:
 - **Keep the command runner disabled.** It is off by default, so leave it off. See [#5199](https://github.com/filebrowser/filebrowser/issues/5199) and [`docs/command-execution.md`](docs/command-execution.md).
 - **Run it unprivileged, inside a container**, with only the directory you intend to serve mounted into it.
 
+## Drive (this fork)
+
+This fork adds a modern cloud-drive interface, personal share links (`/share/your-name`), Starred, Recent, and Shared-links views, and sign-in through Supabase (password, OAuth, or magic link). See [`docs/drive.md`](docs/drive.md) for setup.
+
 ## Documentation
 
 Documentation on how to install, configure, and build this project lives in [`docs`](docs) in this repository.

@@ -221,17 +221,20 @@ var userPutHandler = withSelfOrAdmin(func(w http.ResponseWriter, r *http.Request
 			return http.StatusForbidden, nil
 		}
 
+		var suser *users.User
+		suser, err = d.store.Users.Get(d.server.Root, d.server.FollowExternalSymlinks, d.raw.(uint))
+		if err != nil {
+			return http.StatusInternalServerError, err
+		}
+		// Favorites are managed through /api/starred, never by a full update.
+		req.Data.Starred = suser.Starred
+
 		if req.Data.Password != "" {
 			req.Data.Password, err = users.ValidateAndHashPwd(req.Data.Password, d.settings.MinimumPasswordLength)
 			if err != nil {
 				return http.StatusBadRequest, err
 			}
 		} else {
-			var suser *users.User
-			suser, err = d.store.Users.Get(d.server.Root, d.server.FollowExternalSymlinks, d.raw.(uint))
-			if err != nil {
-				return http.StatusInternalServerError, err
-			}
 			req.Data.Password = suser.Password
 		}
 

@@ -36,6 +36,8 @@ type User struct {
 	HideDotfiles          bool          `json:"hideDotfiles"`
 	DateFormat            bool          `json:"dateFormat"`
 	AceEditorTheme        string        `json:"aceEditorTheme"`
+	// Starred holds the scope-relative paths the user pinned as favorites.
+	Starred []string `json:"starred"`
 }
 
 // GetRules implements rules.Provider.

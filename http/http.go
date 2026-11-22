@@ -52,6 +52,7 @@ func NewHandler(
 	api.Handle("/login", monkey(loginHandler(tokenExpirationTime), ""))
 	api.Handle("/signup", monkey(signupHandler, ""))
 	api.Handle("/renew", monkey(renewHandler(tokenExpirationTime), ""))
+	api.Handle("/auth/magic-link", monkey(magicLinkHandler, "")).Methods("POST")
 
 	users := api.PathPrefix("/users").Subrouter()
 	users.Handle("", monkey(usersGetHandler, "")).Methods("GET")
@@ -75,6 +76,11 @@ func NewHandler(
 	api.PathPrefix("/usage").Handler(monkey(diskUsage, "/api/usage")).Methods("GET")
 
 	api.Handle("/shares", monkey(shareListHandler, "")).Methods("GET")
+	api.Handle("/share-slug/{slug}", monkey(shareSlugHandler, "")).Methods("GET")
+
+	api.Handle("/starred", monkey(starredGetHandler, "")).Methods("GET")
+	api.Handle("/starred", monkey(starredPutHandler, "")).Methods("PUT")
+	api.Handle("/recent", monkey(recentHandler, "")).Methods("GET")
 	api.PathPrefix("/share").Handler(monkey(shareGetsHandler, "/api/share")).Methods("GET")
 	api.PathPrefix("/share").Handler(monkey(sharePostHandler, "/api/share")).Methods("POST")
 	api.PathPrefix("/share").Handler(monkey(shareDeleteHandler, "/api/share")).Methods("DELETE")

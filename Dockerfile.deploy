@@ -1,0 +1,16 @@
+FROM node:24-bookworm-slim AS frontend
+WORKDIR /src/frontend
+RUN npm install -g pnpm@10.33.4
+COPY frontend/ ./
+RUN pnpm install --frozen-lockfile && pnpm run build
+
+FROM golang:1.25 AS backend
+WORKDIR /src
+COPY . .
+COPY --from=frontend /src/frontend/dist ./frontend/dist
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/filebrowser .
+
+FROM drive-runtime:original
+COPY --from=backend /out/filebrowser /bin/filebrowser
+RUN chmod 755 /bin/filebrowser \
+    && setcap 'cap_net_bind_service=+ep' /bin/filebrowser

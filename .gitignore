@@ -37,3 +37,13 @@ build/
 
 default.nix
 Dockerfile.dev
+/.local-patch-backups/
+/drive-deployment-backups/
+*.exe
+*.env
+.env
+.env.*
+!.env.example
+!.env.sample
+/desktop/**/settings.json
+/desktop/**/instance.json

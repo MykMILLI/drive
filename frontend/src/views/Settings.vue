@@ -15,6 +15,14 @@
               {{ t("settings.shareManagement") }}
             </li></router-link
           >
+          <router-link to="/settings/devices">
+            <li :class="{ active: $route.path === '/settings/devices' }">
+              Desktop sync
+            </li>
+          </router-link>
+          <router-link to="/desktop">
+            <li :class="{ active: $route.path === '/desktop' }">Desktop app</li>
+          </router-link>
           <router-link to="/settings/global" v-if="user?.perm.admin"
             ><li :class="{ active: $route.path === '/settings/global' }">
               {{ t("settings.globalSettings") }}

@@ -23,6 +23,7 @@ func NewStorage(db *storm.DB) (*storage.Storage, error) {
 	}
 
 	return &storage.Storage{
+		SyncDevices: storage.NewSyncDeviceStore(db.Bolt),
 		Auth:     authStore,
 		Users:    userStore,
 		Share:    shareStore,

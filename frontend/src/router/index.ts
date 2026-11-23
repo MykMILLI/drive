@@ -40,6 +40,12 @@ const titles = {
 
 const routes = [
   {
+    path: "/desktop",
+    component: Layout,
+    meta: { requiresAuth: true },
+    children: [{ path: "", name: "DesktopDownload", component: () => import("@/views/DesktopDownload.vue") }],
+  },
+  {
     path: "/login",
     name: "Login",
     component: Login,
@@ -126,6 +132,16 @@ const routes = [
           path: "/settings/profile",
         },
         children: [
+          {
+            path: "devices",
+            name: "SyncDevices",
+            component: () => import("@/views/settings/Devices.vue"),
+          },
+          {
+            path: "connect-desktop",
+            name: "DesktopConnect",
+            component: () => import("@/views/settings/ConnectDesktop.vue"),
+          },
           {
             path: "profile",
             name: "ProfileSettings",
@@ -229,7 +245,9 @@ const router = createRouter({
 });
 
 router.beforeResolve(async (to, from) => {
-  const title = i18n.global.t(titles[to.name as keyof typeof titles]);
+  const title = to.name === "DesktopDownload" ? "Drive Desktop" : to.name === "DesktopConnect" ? "Connect Drive Desktop" : to.name === "SyncDevices"
+    ? "Desktop sync"
+    : i18n.global.t(titles[to.name as keyof typeof titles]);
   document.title = title + " - " + name;
 
   const authStore = useAuthStore();

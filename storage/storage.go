@@ -1,6 +1,8 @@
 package storage
 
 import (
+ "context"
+ "io"
 	"github.com/filebrowser/filebrowser/v2/auth"
 	"github.com/filebrowser/filebrowser/v2/settings"
 	"github.com/filebrowser/filebrowser/v2/share"
@@ -10,6 +12,7 @@ import (
 // Storage is a storage powered by a Backend which makes the necessary
 // verifications when fetching and saving data to ensure consistency.
 type Storage struct {
+ ExportDatabase func(context.Context,io.Writer)error
 	SyncDevices *SyncDeviceStore
 	Users    users.Store
 	Share    *share.Storage

@@ -23,6 +23,10 @@
           <router-link to="/desktop">
             <li :class="{ active: $route.path === '/desktop' }">Desktop app</li>
           </router-link>
+          <router-link to="/settings/backups" v-if="user?.perm.admin">
+            <li :class="{ active: $route.path === '/settings/backups' }">Backups</li>
+          </router-link>
+          <router-link to="/settings/backup-automation" v-if="user?.perm.admin"><li :class="{ active: $route.path === '/settings/backup-automation' }">Backup scheduling</li></router-link>
           <router-link to="/settings/global" v-if="user?.perm.admin"
             ><li :class="{ active: $route.path === '/settings/global' }">
               {{ t("settings.globalSettings") }}

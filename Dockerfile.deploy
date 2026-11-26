@@ -10,7 +10,12 @@ COPY . .
 COPY --from=frontend /src/frontend/dist ./frontend/dist
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/filebrowser .
 
+FROM backend AS backup-test
+RUN apt-get update && apt-get install -y --no-install-recommends restic ca-certificates && rm -rf /var/lib/apt/lists/*
+ENV DRIVE_REQUIRE_RESTIC_TEST=1
+
 FROM drive-runtime:original
+RUN apk add --no-cache restic
 COPY --from=backend /out/filebrowser /bin/filebrowser
 RUN chmod 755 /bin/filebrowser \
     && setcap 'cap_net_bind_service=+ep' /bin/filebrowser

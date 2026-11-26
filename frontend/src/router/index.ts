@@ -143,6 +143,13 @@ const routes = [
             component: () => import("@/views/settings/ConnectDesktop.vue"),
           },
           {
+            path: "backups",
+            name: "BackupAdmin",
+            component: () => import("@/views/settings/Backups.vue"),
+            meta: { requiresAdmin: true },
+          },
+          { path: "backup-automation", name: "BackupAutomation", component: () => import("@/views/settings/BackupAutomation.vue"), meta: { requiresAdmin: true } },
+          {
             path: "profile",
             name: "ProfileSettings",
             component: ProfileSettings,
@@ -245,7 +252,7 @@ const router = createRouter({
 });
 
 router.beforeResolve(async (to, from) => {
-  const title = to.name === "DesktopDownload" ? "Drive Desktop" : to.name === "DesktopConnect" ? "Connect Drive Desktop" : to.name === "SyncDevices"
+  const title = to.name === "BackupAutomation" ? "Backup scheduling" : to.name === "BackupAdmin" ? "Backup administration" : to.name === "DesktopDownload" ? "Drive Desktop" : to.name === "DesktopConnect" ? "Connect Drive Desktop" : to.name === "SyncDevices"
     ? "Desktop sync"
     : i18n.global.t(titles[to.name as keyof typeof titles]);
   document.title = title + " - " + name;

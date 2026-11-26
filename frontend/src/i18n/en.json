@@ -1,4 +1,8 @@
 {
+  "projects": {
+    "nav": "Projects",
+    "title": "Projects"
+  },
   "buttons": {
     "cancel": "Cancel",
     "clear": "Clear",

@@ -14,6 +14,8 @@ import Errors from "@/views/Errors.vue";
 import Recent from "@/views/Recent.vue";
 import Starred from "@/views/Starred.vue";
 import SharedLinks from "@/views/Shared.vue";
+import Projects from "@/views/Projects.vue";
+import Project from "@/views/Project.vue";
 import { useAuthStore } from "@/stores/auth";
 import { baseURL, name } from "@/utils/constants";
 import i18n from "@/i18n";
@@ -27,6 +29,8 @@ const titles = {
   Recent: "drive.recent",
   Starred: "drive.starred",
   SharedLinks: "drive.sharedLinks",
+  Projects: "projects.title",
+  Project: "projects.title",
   Settings: "sidebar.settings",
   ProfileSettings: "settings.profileSettings",
   Shares: "settings.shareManagement",
@@ -108,6 +112,25 @@ const routes = [
         path: "",
         name: "SharedLinks",
         component: SharedLinks,
+      },
+    ],
+  },
+  {
+    path: "/projects",
+    component: Layout,
+    meta: {
+      requiresAuth: true,
+    },
+    children: [
+      {
+        path: "",
+        name: "Projects",
+        component: Projects,
+      },
+      {
+        path: ":id",
+        name: "Project",
+        component: Project,
       },
     ],
   },

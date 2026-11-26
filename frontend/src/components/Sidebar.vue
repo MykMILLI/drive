@@ -188,6 +188,11 @@ export default {
           icon: "star_outline",
           label: this.$t("drive.starred"),
         },
+        {
+          to: "/projects",
+          icon: "account_tree",
+          label: this.$t("projects.nav"),
+        },
         ...(this.user?.perm.share
           ? [
               {

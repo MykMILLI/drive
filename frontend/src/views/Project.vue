@@ -33,6 +33,14 @@
       <div class="bar" style="margin-bottom: 0.8em"><i :style="{ width: (scoped.length ? (doneCount / scoped.length) * 100 : 0) + '%' }"></i></div>
       <div v-if="scoped.length && doneCount === scoped.length" class="celebrate">Project complete - every in-scope parent item is closed.</div>
 
+      <div class="pj-tabs" role="tablist">
+        <button class="pj-tab" :class="{ on: tab === 'board' }" role="tab" :aria-selected="tab === 'board'" type="button" @click="setTab('board')">Board</button>
+        <button class="pj-tab" :class="{ on: tab === 'wiki' }" role="tab" :aria-selected="tab === 'wiki'" type="button" @click="setTab('wiki')">
+          Wiki<span v-if="wikiCount"> · {{ wikiCount }}</span>
+        </button>
+      </div>
+
+      <div v-show="tab === 'board'">
       <div v-if="project.ticket" class="tkp">
         <div class="r">
           <span class="tk">TICKET #{{ project.ticket.id }}</span>
@@ -120,6 +128,10 @@
           Owner <input v-model="sel.owner" style="width: 120px" @change="persist" />
           Target <input v-model="sel.target" type="date" @change="persist" />
         </div>
+        <div v-if="wikiFor(sel).length" class="meta">
+          Wiki
+          <button v-for="w in wikiFor(sel)" :key="w.id" class="pb" type="button" @click="openWikiPage(w.id)">📄 {{ w.title }}</button>
+        </div>
 
         <div class="cols"><div>Action items</div><div>Due</div><div>Roadblocks / unknowns</div></div>
         <div v-if="!sel.tasks.length" class="muted" style="margin: 0.6em 0">No action items yet - add one to start this parent.</div>
@@ -159,6 +171,9 @@
         Clear every roadblock, start the task, finish it, close the parent, close the project. Drag a parent card
         to another quadrant. Drag a task by its handle onto another parent card to move it.
       </p>
+      </div>
+
+      <wiki-panel v-if="wikiOpened" v-show="tab === 'wiki'" :project="project" />
     </template>
 
     <item-drawer
@@ -184,8 +199,11 @@ import { useRoute, useRouter } from "vue-router";
 import HeaderBar from "@/components/header/HeaderBar.vue";
 import ItemDrawer from "@/components/projects/ItemDrawer.vue";
 import ProjectImport from "@/components/projects/ProjectImport.vue";
+import WikiPanel from "@/components/projects/WikiPanel.vue";
 import { useProjectsStore } from "@/stores/projects";
+import { useWikiStore } from "@/stores/wiki";
 import { useAuthStore } from "@/stores/auth";
+import { pagesFor } from "@/utils/wikiLogic";
 import { QUADS } from "@/utils/quadrants";
 import {
   dueLabel,
@@ -207,6 +225,7 @@ const $showError = inject<IToastError>("$showError")!;
 const route = useRoute();
 const router = useRouter();
 const store = useProjectsStore();
+const wikiStore = useWikiStore();
 const auth = useAuthStore();
 
 const loading = ref(true);
@@ -241,6 +260,34 @@ const linkDays = computed(() => {
   return exp ? Math.ceil((exp - Date.now()) / 86400000) : null;
 });
 const blockedIn = (p: Parent) => p.tasks.filter((t) => taskDisplay(t) === "blocked").length;
+
+// ---- wiki tab ------------------------------------------------------------
+// The active tab lives in the URL (?tab=wiki&page=<id>) so a wiki page can be
+// linked to, bookmarked, and reopened from a board card.
+const tab = computed<"board" | "wiki">(() => (route.query.tab === "wiki" ? "wiki" : "board"));
+// The panel mounts the first time the tab is opened and then stays mounted,
+// so a half-written page survives a trip back to the board.
+const wikiOpened = ref(tab.value === "wiki");
+watch(tab, (t) => {
+  if (t === "wiki") wikiOpened.value = true;
+});
+const wikiPages = computed(() => (project.value ? wikiStore.forProject(project.value.id) : []));
+const wikiCount = computed(() => wikiPages.value.length);
+const wikiFor = (p: Parent) => pagesFor(wikiPages.value, p.id);
+
+function setTab(t: "board" | "wiki") {
+  const query = { ...route.query } as Record<string, any>;
+  if (t === "wiki") {
+    query.tab = "wiki";
+  } else {
+    delete query.tab;
+    delete query.page;
+  }
+  router.replace({ query });
+}
+function openWikiPage(id: string) {
+  router.replace({ query: { ...route.query, tab: "wiki", page: id } });
+}
 
 const drawerCtx = computed(() => {
   const pr = project.value;
@@ -405,7 +452,9 @@ async function deleteProject() {
     return;
   }
   try {
-    await store.remove(project.value.id);
+    const id = project.value.id;
+    await store.remove(id);
+    wikiStore.forget(id);
     router.push("/projects");
   } catch (e: any) {
     $showError(e);
@@ -432,5 +481,8 @@ onMounted(async () => {
   } finally {
     loading.value = false;
   }
+  // Prime the wiki list so board cards can show their linked pages and the tab
+  // can show a count. A failure here must not get in the way of the board.
+  if (project.value) wikiStore.load(project.value.id, true).catch(() => undefined);
 });
 </script>
